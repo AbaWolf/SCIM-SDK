@@ -86,15 +86,38 @@ class SchemaTest
   }
 
   /**
-   * verifies that an exception is thrown if the id-attribute is missing
+   * verifies that an exception is thrown if the attributes-attribute is missing
    */
-  @ParameterizedTest
-  @ValueSource(strings = {AttributeNames.RFC7643.ID, AttributeNames.RFC7643.ATTRIBUTES})
-  public void testIdAttributeIsMissing(String attributeName)
+  @Test
+  public void testAttributesAttributeIsMissing()
   {
     JsonNode userResourceSchema = JsonHelper.loadJsonDocument(ClassPathReferences.USER_SCHEMA_JSON);
-    JsonHelper.removeAttribute(userResourceSchema, attributeName);
+    JsonHelper.removeAttribute(userResourceSchema, AttributeNames.RFC7643.ATTRIBUTES);
     Assertions.assertThrows(InvalidSchemaException.class, () -> new Schema(userResourceSchema));
+  }
+
+  /**
+   * verifies that an exception is thrown if the id-attribute and the name attribute is missing
+   */
+  @Test
+  public void testIdAndnameAttributesAreMissing()
+  {
+    JsonNode userResourceSchema = JsonHelper.loadJsonDocument(ClassPathReferences.USER_SCHEMA_JSON);
+    JsonHelper.removeAttribute(userResourceSchema, AttributeNames.RFC7643.ID);
+    JsonHelper.removeAttribute(userResourceSchema, AttributeNames.RFC7643.NAME);
+    Assertions.assertThrows(InvalidSchemaException.class, () -> new Schema(userResourceSchema));
+  }
+
+  /**
+   * verifies that no exception is thrown if just id-attribute is missing
+   */
+  @Test
+  public void testIdAttributeIsMissing()
+  {
+    JsonNode userResourceSchema = JsonHelper.loadJsonDocument(ClassPathReferences.USER_SCHEMA_JSON);
+    JsonHelper.removeAttribute(userResourceSchema, AttributeNames.RFC7643.ID);
+    Schema schema = Assertions.assertDoesNotThrow(() -> new Schema(userResourceSchema));
+    Assertions.assertEquals(schema.getName().get(), schema.getId().get());
   }
 
   /**

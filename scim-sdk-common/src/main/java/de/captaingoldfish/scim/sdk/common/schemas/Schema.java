@@ -111,10 +111,14 @@ public class Schema extends ResourceNode
     setSchemas(JsonHelper.getSimpleAttributeArray(jsonNode, AttributeNames.RFC7643.SCHEMAS)
                          .orElse(Collections.emptyList()));
     String errorMessage = "attribute '" + AttributeNames.RFC7643.ID + "' is missing cannot resolve schema";
-    setId(JsonHelper.getSimpleAttribute(jsonNode, AttributeNames.RFC7643.ID)
-                    .orElseThrow(() -> new InvalidSchemaException(errorMessage, null, HttpStatus.INTERNAL_SERVER_ERROR,
-                                                                  null)));
     setName(JsonHelper.getSimpleAttribute(jsonNode, AttributeNames.RFC7643.NAME).orElse(null));
+    setId(JsonHelper.getSimpleAttribute(jsonNode, AttributeNames.RFC7643.ID).orElseGet(() -> {
+      // use name as fallback in case that no id was set. This was reported a while ago and comes from a specific
+      // provider that does not return ids in schema-resources
+      return getName().orElseThrow(() -> {
+        return new InvalidSchemaException(errorMessage, null, HttpStatus.INTERNAL_SERVER_ERROR, null);
+      });
+    }));
     setDescription(JsonHelper.getSimpleAttribute(jsonNode, AttributeNames.RFC7643.DESCRIPTION).orElse(null));
     List<SchemaAttribute> attributeList = new ArrayList<>();
     String noAttributesErrorMessage = "schema with id '" + getId().orElse(null) + "' does not have attributes";

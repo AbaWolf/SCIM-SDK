@@ -1,27 +1,26 @@
 package de.captaingoldfish.scim.sdk.client.builder;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mockito;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import de.captaingoldfish.scim.sdk.client.ScimClientConfig;
 import de.captaingoldfish.scim.sdk.client.builder.config.MetaConfigRequestDetails;
 import de.captaingoldfish.scim.sdk.client.http.ScimHttpClient;
 import de.captaingoldfish.scim.sdk.client.resources.MetaConfiguration;
-import de.captaingoldfish.scim.sdk.client.resources.ResourceType;
 import de.captaingoldfish.scim.sdk.client.response.ServerResponse;
 import de.captaingoldfish.scim.sdk.client.setup.HttpServerMockup;
 import de.captaingoldfish.scim.sdk.common.constants.HttpStatus;
 import de.captaingoldfish.scim.sdk.common.exceptions.BadRequestException;
-import de.captaingoldfish.scim.sdk.common.resources.ServiceProvider;
 import de.captaingoldfish.scim.sdk.common.response.ErrorResponse;
-import de.captaingoldfish.scim.sdk.common.schemas.Schema;
+import de.captaingoldfish.scim.sdk.common.utils.JsonHelper;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -48,6 +47,41 @@ public class MetaConfigLoaderBuilderTest extends HttpServerMockup
   {
     ScimClientConfig scimClientConfig = new ScimClientConfig();
     ScimHttpClient scimHttpClient = new ScimHttpClient(scimClientConfig);
+    ServerResponse<MetaConfiguration> response = new MetaConfigLoaderBuilder(getServerUrl(), scimHttpClient,
+                                                                             new MetaConfigRequestDetails()).sendRequest();
+    Assertions.assertEquals(HttpStatus.OK, response.getHttpStatus());
+
+    MetaConfiguration metaConfiguration = response.getResource();
+    Assertions.assertNotNull(metaConfiguration.getServiceProvider());
+    Assertions.assertEquals(6, metaConfiguration.getResourceTypes().size());
+    Assertions.assertEquals(8, metaConfiguration.getSchemas().size());
+  }
+
+  /**
+   * verifies that a workaround is added to make sure that missing ids on the metadata does not prevent loading
+   * the metadata
+   */
+  @DisplayName("Load meta-data from SCIM provider but the id-fields are all empty")
+  @Test
+  public void testLoadMetaConfigurationWithMissingIdsInResources()
+  {
+    ScimClientConfig scimClientConfig = new ScimClientConfig();
+    ScimHttpClient scimHttpClient = new ScimHttpClient(scimClientConfig);
+
+    setManipulateResponse(responseBody -> {
+      ObjectNode objectNode = JsonHelper.readJsonDocument(responseBody, ObjectNode.class);
+      objectNode.remove("id");
+      if (objectNode.toString().contains("urn:ietf:params:scim:api:messages:2.0:ListResponse"))
+      {
+        ArrayNode arrayNode = (ArrayNode)objectNode.get("Resources");
+        for ( JsonNode resource : arrayNode )
+        {
+          ((ObjectNode)resource).remove("id");
+        }
+      }
+      return objectNode.toString();
+    });
+
     ServerResponse<MetaConfiguration> response = new MetaConfigLoaderBuilder(getServerUrl(), scimHttpClient,
                                                                              new MetaConfigRequestDetails()).sendRequest();
     Assertions.assertEquals(HttpStatus.OK, response.getHttpStatus());
